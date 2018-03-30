@@ -1,6 +1,8 @@
 import random
 import time
 import copy
+import json
+import pickle
 
 
 class Card(object):
@@ -485,10 +487,11 @@ class BasicAgent(object):
 
 class QLearningAgent(object):
 
-    def __init__(self, epsilon=1, alpha=0.5, gamma=0.9, total_games=1000):
+    def __init__(self, use_epsilon=True, epsilon=1, alpha=0.5, gamma=0.9, total_games=1000):
 
-        self.q_table = {}
+        self.q_table = self.load_policy()
         self.epsilon = epsilon
+        self.use_epsilon = use_epsilon
         self.gamma = gamma
         self.alpha = alpha
 
@@ -526,11 +529,16 @@ class QLearningAgent(object):
 
         state = self._get_state(player_hand, house_up_card)
 
-        if random.random() > self.epsilon:
-            actions = self._get_max_q_actions(state, player_hand)
-            action = random.choice(actions)
-        else:
+        if self.use_epsilon and random.random() < self.epsilon:
             action = random.choice(player_hand.get_valid_actions())
+        else:
+            actions = self._get_max_q_actions(state, player_hand)
+            #validate this is a valid action for the current hand
+            actions = [action for action in actions if action in player_hand.get_valid_actions()]
+            if not actions:
+                actions = player_hand.get_valid_actions()
+
+            action = random.choice(actions)
 
         return action
 
@@ -551,6 +559,19 @@ class QLearningAgent(object):
 
         return self.q_table.items()
 
+    def load_policy(self):
+
+        try:
+            with open("policy.pickle", "r") as f:
+                return pickle.loads(f.read())
+        except:
+            return {}
+
+    def save_policy(self):
+
+        with open("policy.pickle", "w") as f:
+            f.write(pickle.dumps(self.q_table))
+
 
 if __name__ == "__main__":
     #results_file = open("results.txt", "w")
@@ -561,9 +582,9 @@ if __name__ == "__main__":
     draws = 0
     money = 0.0
 
-    total_games = 2000
-    #agent = BasicAgent(score_to_stay=17)
-    agent = QLearningAgent(epsilon=1, total_games=total_games)
+    total_games = 1000
+    #agent = BasicAgent(score_to_stay=20)
+    agent = QLearningAgent(use_epsilon=False, total_games=total_games)
 
     for game_number in range(total_games):
 
@@ -584,13 +605,16 @@ if __name__ == "__main__":
 
         agent.end_cycle()
 
+    #for key, values in sorted(agent.learned_policy()):
+    #    print key, values
+
     print "Cantidad de veces que gano el jugador 1: {}".format(player_wins)
     print "Cantidad de veces que gano la banca: {}".format(banca_wins)
     print "Cantidad de veces que empataron: {}".format(draws)
     print "Cantidad neta $: {}".format(money)
 
-    for key, values in sorted(agent.learned_policy()):
-        print key, values
+    if agent.learned_policy():
+        agent.save_policy()
 
     #results_file.write("Cantidad de veces que gano el jugador 1: {}\n".format(player_wins))
     #results_file.write("Cantidad de veces que gano la banca: {}\n".format(banca_wins))
