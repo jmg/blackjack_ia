@@ -389,7 +389,8 @@ class BotPlayer(Player):
                     return_hands.append((player_original_hand, player_hand, action))
                     break
                 else:
-                    reward = player_hand.bet.get_value() / 2.0
+                    #should we reward if hits and don't get busted?
+                    reward = 0
                     agent.learn(player_original_hand, player_hand, house_up_card, reward, action)
 
             i += 1
@@ -796,11 +797,7 @@ class BasicStrategyAgent(BaseAgent):
             return ACTIONS.stand
 
         state = (player_hand.score(), house_up_card, player_hand.is_soft(), player_hand.can_split())
-        try:
-            action = self.basic_strategy_policy[state]
-        except:
-            import ipdb; ipdb.set_trace()
-            action = ACTIONS.stand
+        action = self.basic_strategy_policy[state]
 
         return action
 
@@ -935,7 +932,7 @@ if __name__ == "__main__":
     draws = 0
     money = 0.0
 
-    total_games = 10000
+    total_games = 100000
     agent = BasicAgent(score_to_stay=17)
     agent = BasicStrategyAgent()
     agent = QLearningAgent(use_epsilon=True, epsilon=0.5, total_games=total_games)
