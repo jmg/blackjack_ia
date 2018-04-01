@@ -13,7 +13,12 @@ for state, actions in sorted(data.items()):
 
     basic_strategy_policy = BasicStrategyAgent().basic_strategy_policy
 
-    max_q = max([value for value in actions.values() if value != 0])
+    max_q_actions = [value for value in actions.values() if value != 0]
+    if not max_q_actions:
+        total_diff += 1
+        continue
+
+    max_q = max(max_q_actions)
 
     try:
         basic_strategy_action = basic_strategy_policy[state]
