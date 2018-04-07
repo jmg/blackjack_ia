@@ -2,6 +2,7 @@ import random
 import time
 import copy
 from agents import SimpleAgent, QLearningAgent, BasicStrategyAgent, ACTIONS
+from helpers import Log
 
 
 class Card(object):
@@ -198,17 +199,17 @@ class Hand(object):
         bet = self.bet.get_value()
         payment = -bet if self.player.is_house() else bet
 
-        print "+" * 80
-        print self.get_winner_message(payment)
-        print "+" * 80
+        Log.log("+" * 80)
+        Log.log(self.get_winner_message(payment))
+        Log.log("+" * 80)
 
         return payment
 
     def pay_draw(self):
 
-        print "+" * 80
-        print "Han empatado"
-        print "+" * 80
+        Log.log("+" * 80)
+        Log.log("Han empatado")
+        Log.log("+" * 80)
 
         return 0
 
@@ -217,10 +218,10 @@ class Hand(object):
         bet = self.bet.get_value()
         payment = -bet if self.player.is_house() else self.get_backjack_payment(bet)
 
-        print "+" * 80
-        print "BlackJack!"
-        print self.get_winner_message(payment)
-        print "+" * 80
+        Log.log("+" * 80)
+        Log.log("BlackJack!")
+        Log.log(self.get_winner_message(payment))
+        Log.log("+" * 80)
 
         return payment
 
@@ -351,7 +352,6 @@ class BotPlayer(Player):
 
             while True:
 
-                reward = 0
                 done = False
                 player_original_hand = player_hand.copy()
 
@@ -376,12 +376,19 @@ class BotPlayer(Player):
                             player_hand = hands[i]
 
                 if done:
+                    #done if ACTIONS.stand, ACTIONS.double, busted, blackjack or reached 21
                     return_hands.append((player_original_hand, player_hand, action))
                     break
                 else:
-                    #should we reward if hits and don't get busted?
-                    reward = 0
-                    agent.learn(player_original_hand, player_hand, house_up_card, reward, action)
+                    #keep the loop if ACTIONS.hit or ACTIONS.split
+                    #if new hand score < previous hand score we should give a negative reward
+                    if player_original_hand.score() > player_hand.score():
+                        reward = -player_hand.bet.get_value() / 2.0
+                    else:
+                        reward = player_hand.bet.get_value() / 4.0
+                        #reward = player_hand.bet.get_value()
+
+                    agent.learn(player_original_hand, player_hand, house_up_card, reward, action, "Keep playing")
 
             i += 1
 
@@ -408,34 +415,41 @@ class IAGame(object):
         player_hands = player.play(agent, house_up_card)
         house_hand = house.play(score_to_stay=17)
 
-        print house_hand
-        money_results = 0.0
+        Log.log(house_hand)
+        money_total = 0.0
 
         for player_last_hand, player_hand, last_action in player_hands:
 
-            print player_hand
+            Log.log(player_hand)
 
             if player_hand.busted():
-                money_results += house_hand.pay_win()
+                money_results = house_hand.pay_win()
             elif player_hand.black_jack():
-                money_results += player_hand.pay_backjack()
+                money_results = player_hand.pay_backjack()
             elif house_hand.busted():
-                money_results += player_hand.pay_win()
+                money_results = player_hand.pay_win()
             elif house_hand.black_jack():
-                money_results += house_hand.pay_backjack()
+                money_results = house_hand.pay_backjack()
             else:
                 player_score = player_hand.score()
                 house_score = house_hand.score()
 
                 if player_score > house_score:
-                    money_results += player_hand.pay_win()
+                    money_results = player_hand.pay_win()
                 elif player_score < house_score:
-                    money_results += house_hand.pay_win()
+                    money_results = house_hand.pay_win()
                 else:
-                    money_results += house_hand.pay_draw()
+                    money_results = house_hand.pay_draw()
 
-            agent.learn(player_last_hand, player_hand, house_up_card, money_results, last_action)
+            reward = money_results
+            if player_last_hand.score() > player_hand.score():
+                #regarless of the match results, if the last score is higher than the new score reduce the reward
+                reward = reward / 2.0
+
+            agent.learn(player_last_hand, player_hand, house_up_card, reward, last_action, "End Match with {} hands".format(len(player_hands)))
             self.total_bet += player_hand.bet.get_value()
+
+            money_total += money_results
 
         if money_results > 0:
             match_results = 1
@@ -447,43 +461,45 @@ class IAGame(object):
         return money_results, match_results
 
 
-if __name__ == "__main__":
+def play_stages(stages, fixed_epsilon=None):
 
-    for x in range(10):
+    for stage in range(stages):
 
+        use_epsilon = True
+
+        epsilon = (stages - stage) / float(stages)
         ia_game = IAGame()
 
-        banca_wins = 0
+        house_wins = 0
         player_wins = 0
         draws = 0
         money = 0.0
 
-        total_games = 10000
+        total_games = 1000
         agent = SimpleAgent(score_to_stay=17)
         agent = BasicStrategyAgent()
-        agent = QLearningAgent(total_games=total_games)
+        agent = QLearningAgent(epsilon=epsilon, fixed_epsilon=fixed_epsilon, alpha=0.2, gamma=0.9, total_games=total_games)
 
         for game_number in range(total_games):
 
-            print "*" * 80
-            print "Juego {}".format(game_number)
+            Log.log("*" * 80)
+            Log.log("Juego {}".format(game_number))
             money_results, match_results = ia_game.play(agent)
-            print "*" * 80
+            Log.log("*" * 80)
 
             if match_results < 0:
-                banca_wins += 1
+                house_wins += 1
             elif match_results > 0:
                 player_wins += 1
             else:
                 draws += 1
-            print ""
+            Log.log("")
 
             money += money_results
-
             agent.end_cycle()
 
         print "Cantidad de veces que gano el jugador 1: {}".format(player_wins)
-        print "Cantidad de veces que gano la banca: {}".format(banca_wins)
+        print "Cantidad de veces que gano la banca: {}".format(house_wins)
         print "Cantidad de veces que empataron: {}".format(draws)
         print "Cantidad total apostada $: {}".format(ia_game.total_bet)
         print "Cantidad neta $: {}".format(money)
@@ -494,7 +510,16 @@ if __name__ == "__main__":
             pass
 
         if agent.learned_policy():
-            agent.save_policy()
+            agent.save_policy(money)
+
+        agent.save_results({"money": money, "player_wins": player_wins, "house_wins": house_wins, "draws": draws, "total_games": total_games, "epsilon": epsilon })
 
         print "Saving policy..."
-        time.sleep(3)
+        #time.sleep(3)
+
+
+if __name__ == "__main__":
+
+    #play_stages(100)
+    #play_stages(100, fixed_epsilon=0.1)
+    play_stages(1000, fixed_epsilon=0.0)
