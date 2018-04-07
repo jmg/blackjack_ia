@@ -2,11 +2,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-with open("results.json") as f:
-    data = json.loads(f.read())
-
-
 def plot(algorithm, start=0, end=-1):
+
+    with open("results.json") as f:
+        data = json.loads(f.read())
+
     money = [d["money"] for d in data[algorithm][start:end]]
     player_wins = [d["player_wins"] for d in data[algorithm][start:end]]
 
@@ -20,12 +20,13 @@ def plot(algorithm, start=0, end=-1):
     plt.show()
 
 
-try:
-    plot("QLearningAgent", start=0)
-except Exception, e:
-    print e
+if __name__ == "__main__":
+    try:
+        plot("QLearningAgent", start=0)
+    except Exception, e:
+        print e
 
-try:
-    plot("BasicStrategyAgent")
-except:
-    pass
+    try:
+        plot("BasicStrategyAgent")
+    except:
+        pass

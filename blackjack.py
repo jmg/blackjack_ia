@@ -523,3 +523,6 @@ if __name__ == "__main__":
     #play_stages(100)
     #play_stages(100, fixed_epsilon=0.1)
     play_stages(1000, fixed_epsilon=0.0)
+
+    from plot import plot
+    plot("QLearningAgent")
