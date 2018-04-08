@@ -383,7 +383,7 @@ class BotPlayer(Player):
                     #keep the loop if ACTIONS.hit or ACTIONS.split
                     #if new hand score < previous hand score we should give a negative reward
                     if player_original_hand.score() > player_hand.score():
-                        reward = -player_hand.bet.get_value() / 2.0
+                        reward = -player_hand.bet.get_value() / 4.0
                     else:
                         reward = player_hand.bet.get_value() / 4.0
                         #reward = player_hand.bet.get_value()
@@ -444,7 +444,11 @@ class IAGame(object):
             reward = money_results
             if player_last_hand.score() > player_hand.score():
                 #regarless of the match results, if the last score is higher than the new score reduce the reward
-                reward = reward / 2.0
+                reward = reward - (reward / 4.0)
+
+            #if player_hand.busted():
+                #negative *2 if busted
+            #    reward *= reward
 
             agent.learn(player_last_hand, player_hand, house_up_card, reward, last_action, "End Match with {} hands".format(len(player_hands)))
             self.total_bet += player_hand.bet.get_value()
@@ -461,7 +465,7 @@ class IAGame(object):
         return money_results, match_results
 
 
-def play_stages(stages, fixed_epsilon=None):
+def play_stages(stages, fixed_epsilon=None, alpha=0.5, gamma=0.9):
 
     for stage in range(stages):
 
@@ -476,9 +480,9 @@ def play_stages(stages, fixed_epsilon=None):
         money = 0.0
 
         total_games = 1000
-        agent = SimpleAgent(score_to_stay=17)
-        agent = BasicStrategyAgent()
-        agent = QLearningAgent(epsilon=epsilon, fixed_epsilon=fixed_epsilon, alpha=0.2, gamma=0.9, total_games=total_games)
+        #agent = SimpleAgent(score_to_stay=17)
+        #agent = BasicStrategyAgent()
+        agent = QLearningAgent(epsilon=epsilon, fixed_epsilon=fixed_epsilon, alpha=alpha, gamma=gamma, total_games=total_games)
 
         for game_number in range(total_games):
 
@@ -520,9 +524,9 @@ def play_stages(stages, fixed_epsilon=None):
 
 if __name__ == "__main__":
 
-    #play_stages(100)
-    #play_stages(100, fixed_epsilon=0.1)
-    play_stages(1000, fixed_epsilon=0.0)
+    #play_stages(250)
+    #play_stages(250, fixed_epsilon=0.1)
+    play_stages(5000, fixed_epsilon=0.0, gamma=1)
 
     from plot import plot
     plot("QLearningAgent")
