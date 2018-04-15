@@ -1,7 +1,8 @@
 import random
 import time
 import copy
-from agents import SimpleAgent, QLearningAgent, BasicStrategyAgent, ACTIONS
+import config
+from agents import SimpleAgent, QLearningAgent, BasicStrategyAgent, CustomPolicyAgent, ACTIONS
 from helpers import Log
 
 
@@ -168,10 +169,12 @@ class Hand(object):
         valid_actions = [ACTIONS.stand]
         if self.score() < 21:
             valid_actions.append(ACTIONS.hit)
-        if self.can_split():
-            valid_actions.append(ACTIONS.split)
-        if self.can_double():
-            valid_actions.append(ACTIONS.double)
+
+        if not config.ONLY_HIT_OR_STAND:
+            if self.can_split():
+                valid_actions.append(ACTIONS.split)
+            if self.can_double():
+                valid_actions.append(ACTIONS.double)
 
         return valid_actions
 
@@ -381,14 +384,7 @@ class BotPlayer(Player):
                     break
                 else:
                     #keep the loop if ACTIONS.hit or ACTIONS.split
-                    #if new hand score < previous hand score we should give a negative reward
-                    if player_original_hand.score() > player_hand.score():
-                        reward = -player_hand.bet.get_value() / 4.0
-                    else:
-                        reward = player_hand.bet.get_value() / 4.0
-                        #reward = player_hand.bet.get_value()
-
-                    agent.learn(player_original_hand, player_hand, house_up_card, reward, action, "Keep playing")
+                    agent.learn(player_original_hand, player_hand, house_up_card, 0, action, "Keep playing")
 
             i += 1
 
@@ -442,15 +438,16 @@ class IAGame(object):
                     money_results = house_hand.pay_draw()
 
             reward = money_results
-            if player_last_hand.score() > player_hand.score():
-                #regarless of the match results, if the last score is higher than the new score reduce the reward
-                reward = reward - (reward / 4.0)
 
-            #if player_hand.busted():
-                #negative *2 if busted
-            #    reward *= reward
+            if money_results > 0:
+                hand_results = "win"
+            elif money_results < 0:
+                hand_results = "lost"
+            else:
+                hand_results = "draw"
 
-            agent.learn(player_last_hand, player_hand, house_up_card, reward, last_action, "End Match with {} hands".format(len(player_hands)))
+            description = "End Match with {} hands in {}".format(len(player_hands), hand_results)
+            agent.learn(player_last_hand, player_hand, house_up_card, reward, last_action, description)
             self.total_bet += player_hand.bet.get_value()
 
             money_total += money_results
@@ -465,13 +462,14 @@ class IAGame(object):
         return money_results, match_results
 
 
-def play_stages(stages, fixed_epsilon=None, alpha=0.5, gamma=0.9):
+def play_episodes(episodes, fixed_epsilon=None, alpha=0.5, gamma=0.9, total_games=1000):
 
-    for stage in range(stages):
+    for episode in range(episodes):
 
         use_epsilon = True
 
-        epsilon = (stages - stage) / float(stages)
+        epsilon = (episodes - episode) / float(episodes)
+        #epsilon = 0.7
         ia_game = IAGame()
 
         house_wins = 0
@@ -479,10 +477,10 @@ def play_stages(stages, fixed_epsilon=None, alpha=0.5, gamma=0.9):
         draws = 0
         money = 0.0
 
-        total_games = 1000
         #agent = SimpleAgent(score_to_stay=17)
         #agent = BasicStrategyAgent()
         agent = QLearningAgent(epsilon=epsilon, fixed_epsilon=fixed_epsilon, alpha=alpha, gamma=gamma, total_games=total_games)
+        #agent = CustomPolicyAgent()
 
         for game_number in range(total_games):
 
@@ -524,9 +522,13 @@ def play_stages(stages, fixed_epsilon=None, alpha=0.5, gamma=0.9):
 
 if __name__ == "__main__":
 
-    #play_stages(250)
-    #play_stages(250, fixed_epsilon=0.1)
-    play_stages(5000, fixed_epsilon=0.0, gamma=1)
+    #play_episodes(100, alpha=0.8, total_games=1000)
+    #play_episodes(100, fixed_epsilon=0.1, alpha=0.8, total_games=100)
+    #play_episodes(300, fixed_epsilon=0.0, alpha=0.8, total_games=100)
 
-    from plot import plot
-    plot("QLearningAgent")
+    play_episodes(100, fixed_epsilon=0.0)
+    play_episodes(100, fixed_epsilon=0.1)
+    play_episodes(500, fixed_epsilon=0.0, gamma=1)
+
+    #from plot import plot
+    #plot("QLearningAgent")

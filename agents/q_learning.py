@@ -74,6 +74,7 @@ class QLearningAgent(BaseAgent):
             actions = [action for action in actions if action in player_hand.get_valid_actions()]
             if not actions:
                 actions = player_hand.get_valid_actions()
+                self.total_exploration += 1
 
             action = random.choice(actions)
 
@@ -84,11 +85,18 @@ class QLearningAgent(BaseAgent):
         state = self._get_state(player_hand, house_up_card)
         new_state = self._get_state(player_new_hand, house_up_card)
 
-        new_q = (1 - self.alpha) * self._get_q(state, action) + self.alpha * (reward + self.gamma * self._get_max_q(new_state))
+        state_q = self._get_q(state, action)
+        max_q = self._get_max_q(new_state)
+
+        new_q = state_q + self.alpha * (reward + self.gamma * max_q - state_q)
+        #new_q = (1 - self.alpha) * state_q + self.alpha * (reward + self.gamma * max_q)
         self.q_table[state][action] = new_q
 
         with open("log.txt", "a") as f:
-            f.write("From {} to {} with action {}. Reward: {}. New Q: {}. {}\n".format(state, new_state, action, reward, new_q, description))
+            f.write("From {} to {} with action {}. Reward: {}. Old Q: {}, New Q: {}. {}\n".format(state, new_state, action, reward, state_q, new_q, description))
+            f.write("{} + {} * ({} + {} * {} - {}))\n".format(state_q, self.alpha, reward, self.gamma, max_q, state_q))
+            #formula = "(1 - {}) * {} + {} * ({} + {} * {})".format(self.alpha, state_q, self.alpha, reward, self.gamma, max_q)
+            #f.write("{}\n".format(formula))
 
         #time.sleep(5)
 

@@ -18,14 +18,3 @@ class SimpleAgent(BaseAgent):
 
         return ACTIONS.stand
 
-    def learn(self, player_hand, player_new_hand, house_up_card, reward, action):
-
-        pass
-
-    def end_cycle(self):
-
-        pass
-
-    def learned_policy(self):
-
-        return []

@@ -27,6 +27,6 @@ if __name__ == "__main__":
         print e
 
     try:
-        plot("BasicStrategyAgent")
+        plot("CustomPolicyAgent")
     except:
         pass
